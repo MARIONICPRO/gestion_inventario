@@ -1,0 +1,2 @@
+# gestion_inventario
+inventario
