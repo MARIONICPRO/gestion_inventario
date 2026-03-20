@@ -1,268 +1,457 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CBA Inventory - Panel de Control</title>
-    <!-- Tailwind CSS -->
+    <title>CBA Inventory</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SweetAlert2 para alertas bonitas -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-sidebar: #1e293b;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-sidebar: #cbd5e1;
+            --text-sidebar-active: #ffffff;
+            --border: #e2e8f0;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --card-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-sidebar: #0d1117;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-sidebar: #94a3b8;
+            --text-sidebar-active: #ffffff;
+            --border: #334155;
+            --accent: #60a5fa;
+            --accent-hover: #3b82f6;
+            --card-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            --danger: #f87171;
+            --success: #4ade80;
+            --warning: #fbbf24;
+        }
+
+        body { background: var(--bg-primary); color: var(--text-primary); }
+        .sidebar { background: var(--bg-sidebar); }
+        .sidebar-link { color: var(--text-sidebar); border-radius: 8px; transition: all 0.2s; }
+        .sidebar-link:hover { background: rgba(255,255,255,0.08); color: var(--text-sidebar-active); }
+        .sidebar-link.active { background: var(--accent); color: var(--text-sidebar-active); }
+        .card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--card-shadow); }
+        .topbar { background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+        .input-style { background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 8px 12px; width: 100%; outline: none; transition: border-color 0.2s; }
+        .input-style:focus { border-color: var(--accent); }
+        .input-style option { background: var(--bg-secondary); color: var(--text-primary); }
+        .btn-primary { background: var(--accent); color: white; border-radius: 8px; padding: 8px 16px; font-weight: 600; transition: background 0.2s, transform 0.1s; border: none; cursor: pointer; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 8px 16px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+        .btn-secondary:hover { background: var(--bg-primary); }
+        .table-header { background: var(--bg-primary); color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+        .table-row { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+        .table-row:hover { background: var(--bg-primary); }
+        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .modal-box { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; }
+        .badge-ok { background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+        .badge-low { background: #fee2e2; color: #b91c1c; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+        [data-theme="dark"] .badge-ok { background: rgba(34,197,94,0.15); color: #4ade80; }
+        [data-theme="dark"] .badge-low { background: rgba(239,68,68,0.15); color: #f87171; }
+        .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .toggle-btn { width: 44px; height: 24px; background: var(--border); border-radius: 999px; position: relative; cursor: pointer; transition: background 0.2s; border: none; }
+        .toggle-btn.on { background: var(--accent); }
+        .toggle-dot { width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .toggle-btn.on .toggle-dot { transform: translateX(20px); }
+
+        /* Login page */
+        .login-bg { min-height: 100vh; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; }
+        .login-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 20px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); }
+        [data-theme="dark"] .login-card { box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .login-logo { width: 52px; height: 52px; background: var(--accent); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+        .tab-btn { flex: 1; padding: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: var(--text-secondary); border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { animation: spin 0.8s linear infinite; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    </style>
 </head>
-<body class="bg-gray-100">
-    <div class="flex h-screen">
-        <!-- Sidebar -->
-        <div class="w-64 bg-white shadow-lg">
-            <div class="p-4 border-b">
-                <h1 class="text-2xl font-bold text-blue-600">CBA Inventory</h1>
-                <p class="text-xs text-gray-500">SENA ADSO</p>
+<body>
+
+    <!-- ===== LOGIN PAGE ===== -->
+    <div id="loginPage" class="login-bg fade-in">
+        <div class="login-card">
+            <div class="login-logo">
+                <i class="fas fa-boxes text-white text-xl"></i>
             </div>
-            
-            <nav class="p-4">
-                <ul class="space-y-2">
+            <h1 class="text-center font-bold text-2xl mb-1" style="color: var(--text-primary)">CBA Inventory</h1>
+            <p class="text-center text-sm mb-6" style="color: var(--text-secondary)">SENA · ADSO</p>
+
+            <!-- Tabs -->
+            <div class="flex border-b mb-6" style="border-color: var(--border)">
+                <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Iniciar Sesión</button>
+                <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">Registrarse</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="formLogin">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Correo electrónico</label>
+                    <input type="email" id="loginEmail" placeholder="correo@ejemplo.com" class="input-style">
+                </div>
+                <div class="mb-2">
+                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Contraseña</label>
+                    <div class="relative">
+                        <input type="password" id="loginPassword" placeholder="••••••••" class="input-style" style="padding-right: 40px">
+                        <button onclick="togglePassword('loginPassword', this)" class="absolute right-3 top-2.5" style="background:none;border:none;cursor:pointer;color:var(--text-secondary)">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-6 text-right">
+                    <button onclick="forgotPassword()" class="text-xs font-semibold" style="color: var(--accent); background: none; border: none; cursor: pointer;">¿Olvidaste tu contraseña?</button>
+                </div>
+                <button onclick="handleLogin()" id="btnLogin" class="btn-primary w-full text-center py-2.5">
+                    <span id="loginBtnText">Ingresar</span>
+                </button>
+            </div>
+
+            <!-- Register Form -->
+            <div id="formRegister" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Correo electrónico</label>
+                    <input type="email" id="registerEmail" placeholder="correo@ejemplo.com" class="input-style">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Contraseña</label>
+                    <div class="relative">
+                        <input type="password" id="registerPassword" placeholder="Mínimo 6 caracteres" class="input-style" style="padding-right: 40px">
+                        <button onclick="togglePassword('registerPassword', this)" class="absolute right-3 top-2.5" style="background:none;border:none;cursor:pointer;color:var(--text-secondary)">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Confirmar contraseña</label>
+                    <input type="password" id="registerConfirm" placeholder="Repite tu contraseña" class="input-style">
+                </div>
+                <button onclick="handleRegister()" id="btnRegister" class="btn-primary w-full text-center py-2.5">
+                    <span id="registerBtnText">Crear cuenta</span>
+                </button>
+            </div>
+
+            <!-- Dark mode toggle in login -->
+            <div class="flex items-center justify-center gap-2 mt-6">
+                <i class="fas fa-sun text-xs" style="color: var(--text-secondary)"></i>
+                <button class="toggle-btn" id="loginThemeToggle" onclick="toggleTheme()">
+                    <div class="toggle-dot"></div>
+                </button>
+                <i class="fas fa-moon text-xs" style="color: var(--text-secondary)"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MAIN APP ===== -->
+    <div id="mainApp" class="hidden flex h-screen">
+
+        <!-- Sidebar -->
+        <div class="sidebar w-64 flex flex-col h-full">
+            <div class="p-5 border-b" style="border-color: rgba(255,255,255,0.08)">
+                <div class="flex items-center gap-3">
+                    <div style="width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-boxes text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-white text-base leading-tight">CBA Inventory</h1>
+                        <p class="text-xs" style="color: var(--text-sidebar)">SENA ADSO</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="p-4 flex-1">
+                <p class="text-xs font-semibold mb-3 px-2" style="color: rgba(255,255,255,0.3); letter-spacing: 0.08em;">MENÚ</p>
+                <ul class="space-y-1">
                     <li>
-                        <a href="#" class="flex items-center p-2 text-blue-600 bg-blue-50 rounded-lg" onclick="showSection('dashboard')">
-                            <i class="fas fa-home mr-3"></i>
+                        <a href="#" class="sidebar-link active flex items-center gap-3 px-3 py-2.5 text-sm font-medium" onclick="showSection('dashboard', this)">
+                            <i class="fas fa-home w-4 text-center"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="flex items-center p-2 text-gray-700 hover:bg-gray-100 rounded-lg" onclick="showSection('inventario')">
-                            <i class="fas fa-boxes mr-3"></i>
+                        <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium" onclick="showSection('inventario', this)">
+                            <i class="fas fa-boxes w-4 text-center"></i>
                             <span>Inventario</span>
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="flex items-center p-2 text-gray-700 hover:bg-gray-100 rounded-lg" onclick="showSection('proveedores')">
-                            <i class="fas fa-truck mr-3"></i>
+                        <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium" onclick="showSection('proveedores', this)">
+                            <i class="fas fa-truck w-4 text-center"></i>
                             <span>Proveedores</span>
                         </a>
                     </li>
                 </ul>
             </nav>
-            
-            <div class="absolute bottom-0 w-64 p-4 border-t">
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <p class="text-sm font-semibold">Proyecto ADSO</p>
-                    <p class="text-xs text-gray-600">Formación Académica</p>
+
+            <!-- User info -->
+            <div class="p-4 border-t" style="border-color: rgba(255,255,255,0.08)">
+                <div class="flex items-center gap-3 mb-3">
+                    <div style="width:34px;height:34px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <i class="fas fa-user text-white text-xs"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <p class="text-xs font-semibold text-white truncate" id="userEmailDisplay">usuario@email.com</p>
+                        <p class="text-xs" style="color: var(--text-sidebar)">Administrador</p>
+                    </div>
                 </div>
+                <button onclick="handleLogout()" class="w-full text-left text-xs px-3 py-2 rounded-lg flex items-center gap-2" style="color: var(--text-sidebar); background: rgba(255,255,255,0.05); border: none; cursor: pointer; transition: background 0.2s;"
+                    onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.color='#f87171'"
+                    onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color=''">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+                </button>
             </div>
         </div>
 
         <!-- Main Content -->
-        <div class="flex-1 overflow-auto">
+        <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Topbar -->
-            <div class="bg-white shadow-sm p-4 flex justify-between items-center">
-                <h2 class="text-xl font-semibold" id="sectionTitle">Panel de Control</h2>
-                <div class="flex items-center space-x-4">
+            <div class="topbar px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold" id="sectionTitle" style="color: var(--text-primary)">Panel de Control</h2>
+                <div class="flex items-center gap-3">
+                    <!-- Search -->
                     <div class="relative">
-                        <input type="text" id="searchInput" placeholder="Buscar productos..." class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500" onkeyup="filterProducts()">
-                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar productos..."
+                            class="input-style text-sm pl-9"
+                            style="width: 220px"
+                            onkeyup="filterProducts()">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-xs" style="color: var(--text-secondary)"></i>
                     </div>
-                    <button onclick="openProductModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                        <i class="fas fa-plus mr-2"></i>Nuevo Producto
+                    <!-- Dark mode toggle -->
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-sun text-xs" style="color: var(--text-secondary)"></i>
+                        <button class="toggle-btn" id="appThemeToggle" onclick="toggleTheme()">
+                            <div class="toggle-dot"></div>
+                        </button>
+                        <i class="fas fa-moon text-xs" style="color: var(--text-secondary)"></i>
+                    </div>
+                    <!-- New Product -->
+                    <button onclick="openProductModal()" class="btn-primary text-sm flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Nuevo Producto
                     </button>
                 </div>
             </div>
 
-            <!-- Dashboard Section -->
-            <div id="dashboard" class="p-6">
-                <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 bg-blue-100 rounded-full">
-                                <i class="fas fa-dollar-sign text-blue-600 text-xl"></i>
+            <!-- Sections -->
+            <div class="flex-1 overflow-auto p-6">
+
+                <!-- DASHBOARD -->
+                <div id="dashboard" class="fade-in">
+                    <div class="grid grid-cols-3 gap-5 mb-6">
+                        <div class="card p-5 flex items-center gap-4">
+                            <div class="stat-icon" style="background: rgba(59,130,246,0.12)">
+                                <i class="fas fa-dollar-sign" style="color: var(--accent)"></i>
                             </div>
-                            <div class="ml-4">
-                                <p class="text-sm text-gray-500">Valor Total Inventario</p>
-                                <p class="text-2xl font-bold" id="totalValor">$0</p>
+                            <div>
+                                <p class="text-xs font-semibold mb-0.5" style="color: var(--text-secondary)">Valor Total</p>
+                                <p class="text-2xl font-bold" id="totalValor" style="color: var(--text-primary)">$0</p>
+                            </div>
+                        </div>
+                        <div class="card p-5 flex items-center gap-4">
+                            <div class="stat-icon" style="background: rgba(239,68,68,0.12)">
+                                <i class="fas fa-exclamation-triangle" style="color: var(--danger)"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold mb-0.5" style="color: var(--text-secondary)">Stock Bajo</p>
+                                <p class="text-2xl font-bold" id="totalAlertas" style="color: var(--danger)">0</p>
+                            </div>
+                        </div>
+                        <div class="card p-5 flex items-center gap-4">
+                            <div class="stat-icon" style="background: rgba(34,197,94,0.12)">
+                                <i class="fas fa-cube" style="color: var(--success)"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold mb-0.5" style="color: var(--text-secondary)">Total Productos</p>
+                                <p class="text-2xl font-bold" id="totalProductos" style="color: var(--text-primary)">0</p>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 bg-red-100 rounded-full">
-                                <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm text-gray-500">Alertas Stock Bajo</p>
-                                <p class="text-2xl font-bold" id="totalAlertas">0</p>
-                            </div>
+
+                    <div class="card overflow-hidden">
+                        <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color: var(--border)">
+                            <h3 class="font-bold text-sm" style="color: var(--text-primary)">Vista rápida del inventario</h3>
+                            <span class="text-xs" style="color: var(--text-secondary)">Últimos 5 productos</span>
                         </div>
+                        <table class="w-full">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="px-6 py-3 text-left">Producto</th>
+                                    <th class="px-6 py-3 text-left">Categoría</th>
+                                    <th class="px-6 py-3 text-left">Stock</th>
+                                    <th class="px-6 py-3 text-left">Precio</th>
+                                    <th class="px-6 py-3 text-left">Estado</th>
+                                    <th class="px-6 py-3 text-left">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productosTable"></tbody>
+                        </table>
                     </div>
-                    
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 bg-green-100 rounded-full">
-                                <i class="fas fa-cube text-green-600 text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm text-gray-500">Total Productos</p>
-                                <p class="text-2xl font-bold" id="totalProductos">0</p>
-                            </div>
+                </div>
+
+                <!-- INVENTARIO -->
+                <div id="inventario" class="hidden fade-in">
+                    <div class="card overflow-hidden">
+                        <div class="px-6 py-4 border-b" style="border-color: var(--border)">
+                            <h3 class="font-bold text-sm" style="color: var(--text-primary)">Gestión de Inventario</h3>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Vista Rápida de Inventario -->
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-4 border-b">
-                        <h3 class="text-lg font-semibold">Vista rápida de inventario</h3>
-                    </div>
-                    <div class="overflow-x-auto">
                         <table class="w-full">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="px-6 py-3 text-left">Producto</th>
+                                    <th class="px-6 py-3 text-left">Categoría</th>
+                                    <th class="px-6 py-3 text-left">Stock</th>
+                                    <th class="px-6 py-3 text-left">Precio</th>
+                                    <th class="px-6 py-3 text-left">Proveedor</th>
+                                    <th class="px-6 py-3 text-left">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="productosTable" class="divide-y divide-gray-200">
-                                <!-- Los productos se cargarán dinámicamente -->
-                            </tbody>
+                            <tbody id="inventarioTable"></tbody>
                         </table>
                     </div>
                 </div>
-            </div>
 
-            <!-- Inventario Section (oculto por defecto) -->
-            <div id="inventario" class="p-6 hidden">
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-4 border-b">
-                        <h3 class="text-lg font-semibold">Gestión de Inventario</h3>
-                    </div>
-                    <div class="p-4">
+                <!-- PROVEEDORES -->
+                <div id="proveedores" class="hidden fade-in">
+                    <div class="card overflow-hidden">
+                        <div class="px-6 py-4 border-b flex justify-between items-center" style="border-color: var(--border)">
+                            <h3 class="font-bold text-sm" style="color: var(--text-primary)">Gestión de Proveedores</h3>
+                            <button onclick="openProveedorModal()" class="btn-primary text-sm flex items-center gap-2">
+                                <i class="fas fa-plus"></i> Nuevo Proveedor
+                            </button>
+                        </div>
                         <table class="w-full">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proveedor</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="px-6 py-3 text-left">Nombre</th>
+                                    <th class="px-6 py-3 text-left">Contacto</th>
+                                    <th class="px-6 py-3 text-left">Teléfono</th>
+                                    <th class="px-6 py-3 text-left">Email</th>
+                                    <th class="px-6 py-3 text-left">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="inventarioTable" class="divide-y divide-gray-200">
-                                <!-- Los productos se cargarán dinámicamente -->
-                            </tbody>
+                            <tbody id="proveedoresTable"></tbody>
                         </table>
                     </div>
                 </div>
-            </div>
 
-            <!-- Proveedores Section (oculto por defecto) -->
-            <div id="proveedores" class="p-6 hidden">
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-4 border-b flex justify-between items-center">
-                        <h3 class="text-lg font-semibold">Gestión de Proveedores</h3>
-                        <button onclick="openProveedorModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                            <i class="fas fa-plus mr-2"></i>Nuevo Proveedor
-                        </button>
-                    </div>
-                    <div class="p-4">
-                        <table class="w-full">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contacto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Teléfono</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="proveedoresTable" class="divide-y divide-gray-200">
-                                <!-- Los proveedores se cargarán dinámicamente -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal para Productos -->
-    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
-        <div class="bg-white rounded-lg p-6 w-96">
-            <h3 class="text-xl font-bold mb-4" id="modalTitle">Nuevo Producto</h3>
-            <form id="productForm">
+    <!-- ===== MODAL PRODUCTO ===== -->
+    <div id="productModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
+        <div class="modal-box w-full max-w-md p-6 mx-4">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-lg font-bold" id="modalTitle" style="color: var(--text-primary)">Nuevo Producto</h3>
+                <button onclick="closeProductModal()" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:18px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="productForm" onsubmit="guardarProducto(event)">
                 <input type="hidden" id="productId">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Nombre del Producto</label>
-                    <input type="text" id="productName" class="w-full border rounded-lg p-2" required>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Nombre del Producto</label>
+                        <input type="text" id="productName" class="input-style text-sm" placeholder="Ej: Laptop HP" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Categoría</label>
+                        <select id="productCategory" class="input-style text-sm" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="Electrónica">Electrónica</option>
+                            <option value="Computadoras">Computadoras</option>
+                            <option value="Accesorios">Accesorios</option>
+                            <option value="Monitores">Monitores</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Stock</label>
+                        <input type="number" id="productStock" class="input-style text-sm" placeholder="0" required min="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Precio</label>
+                        <input type="number" id="productPrice" class="input-style text-sm" placeholder="0.00" required min="0" step="0.01">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Proveedor</label>
+                        <select id="productSupplier" class="input-style text-sm" required>
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Categoría</label>
-                    <select id="productCategory" class="w-full border rounded-lg p-2" required>
-                        <option value="">Seleccionar categoría</option>
-                        <option value="Electrónica">Electrónica</option>
-                        <option value="Computadoras">Computadoras</option>
-                        <option value="Accesorios">Accesorios</option>
-                        <option value="Monitores">Monitores</option>
-                    </select>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Stock</label>
-                    <input type="number" id="productStock" class="w-full border rounded-lg p-2" required min="0">
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Precio</label>
-                    <input type="number" id="productPrice" class="w-full border rounded-lg p-2" required min="0" step="0.01">
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Proveedor</label>
-                    <select id="productSupplier" class="w-full border rounded-lg p-2" required>
-                        <option value="">Seleccionar proveedor</option>
-                    </select>
-                </div>
-                <div class="flex justify-end space-x-2">
-                    <button type="button" onclick="closeProductModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal para Proveedores -->
-    <div id="proveedorModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
-        <div class="bg-white rounded-lg p-6 w-96">
-            <h3 class="text-xl font-bold mb-4">Nuevo Proveedor</h3>
-            <form id="proveedorForm">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Nombre del Proveedor</label>
-                    <input type="text" id="proveedorName" class="w-full border rounded-lg p-2" required>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Persona de Contacto</label>
-                    <input type="text" id="proveedorContacto" class="w-full border rounded-lg p-2" required>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Teléfono</label>
-                    <input type="text" id="proveedorTelefono" class="w-full border rounded-lg p-2" required>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2">Email</label>
-                    <input type="email" id="proveedorEmail" class="w-full border rounded-lg p-2" required>
-                </div>
-                <div class="flex justify-end space-x-2">
-                    <button type="button" onclick="closeProveedorModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
+                <div class="flex gap-3 justify-end pt-2">
+                    <button type="button" onclick="closeProductModal()" class="btn-secondary text-sm">Cancelar</button>
+                    <button type="submit" class="btn-primary text-sm">Guardar</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- ✅ SOLO UNA VEZ - JavaScript al final -->
+    <!-- ===== MODAL PROVEEDOR ===== -->
+    <div id="proveedorModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
+        <div class="modal-box w-full max-w-md p-6 mx-4">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-lg font-bold" style="color: var(--text-primary)">Nuevo Proveedor</h3>
+                <button onclick="closeProveedorModal()" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:18px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="proveedorForm" onsubmit="guardarProveedor(event)">
+                <div class="space-y-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Nombre del Proveedor</label>
+                        <input type="text" id="proveedorName" class="input-style text-sm" placeholder="Ej: TechDistribuidor" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Persona de Contacto</label>
+                        <input type="text" id="proveedorContacto" class="input-style text-sm" placeholder="Nombre completo" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Teléfono</label>
+                            <input type="text" id="proveedorTelefono" class="input-style text-sm" placeholder="3001234567" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Email</label>
+                            <input type="email" id="proveedorEmail" class="input-style text-sm" placeholder="email@ejemplo.com" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3 justify-end pt-2">
+                    <button type="button" onclick="closeProveedorModal()" class="btn-secondary text-sm">Cancelar</button>
+                    <button type="submit" class="btn-primary text-sm">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
