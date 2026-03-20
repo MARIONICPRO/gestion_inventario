@@ -4,454 +4,494 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CBA Inventory</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- bcryptjs para hashear contraseñas en el cliente -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Plus Jakarta Sans', sans-serif; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
-
         :root {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --bg-sidebar: #1e293b;
-            --text-primary: #0f172a;
-            --text-secondary: #64748b;
-            --text-sidebar: #cbd5e1;
-            --text-sidebar-active: #ffffff;
-            --border: #e2e8f0;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --card-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            --danger: #ef4444;
-            --success: #22c55e;
-            --warning: #f59e0b;
+            --bg-primary: #f8fafc; --bg-secondary: #ffffff; --bg-sidebar: #1e293b;
+            --text-primary: #0f172a; --text-secondary: #64748b; --text-sidebar: #cbd5e1;
+            --border: #e2e8f0; --accent: #3b82f6; --accent-hover: #2563eb;
+            --card-shadow: 0 1px 3px rgba(0,0,0,0.1); --danger: #ef4444;
+            --success: #22c55e; --warning: #f59e0b;
         }
         [data-theme="dark"] {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-sidebar: #0d1117;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-sidebar: #94a3b8;
-            --text-sidebar-active: #ffffff;
-            --border: #334155;
-            --accent: #60a5fa;
-            --accent-hover: #3b82f6;
-            --card-shadow: 0 1px 3px rgba(0,0,0,0.4);
-            --danger: #f87171;
-            --success: #4ade80;
-            --warning: #fbbf24;
+            --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-sidebar: #0d1117;
+            --text-primary: #f1f5f9; --text-secondary: #94a3b8; --text-sidebar: #94a3b8;
+            --border: #334155; --accent: #60a5fa; --accent-hover: #3b82f6;
+            --card-shadow: 0 1px 3px rgba(0,0,0,0.4); --danger: #f87171; --success: #4ade80; --warning: #fbbf24;
         }
-
         body { background: var(--bg-primary); color: var(--text-primary); }
         .sidebar { background: var(--bg-sidebar); }
-        .sidebar-link { color: var(--text-sidebar); border-radius: 8px; transition: all 0.2s; }
-        .sidebar-link:hover { background: rgba(255,255,255,0.08); color: var(--text-sidebar-active); }
-        .sidebar-link.active { background: var(--accent); color: var(--text-sidebar-active); }
+        .sidebar-link { color: var(--text-sidebar); border-radius: 8px; transition: all 0.2s; text-decoration: none; display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 14px; font-weight: 500; }
+        .sidebar-link:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .sidebar-link.active { background: var(--accent); color: #fff; }
         .card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--card-shadow); }
         .topbar { background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
-        .input-style { background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 8px 12px; width: 100%; outline: none; transition: border-color 0.2s; }
-        .input-style:focus { border-color: var(--accent); }
+        .input-style { background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 8px 12px; width: 100%; outline: none; transition: border-color 0.2s, box-shadow 0.2s; font-size: 13px; }
+        .input-style:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+        .input-style.error { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.12) !important; }
         .input-style option { background: var(--bg-secondary); color: var(--text-primary); }
-        .btn-primary { background: var(--accent); color: white; border-radius: 8px; padding: 8px 16px; font-weight: 600; transition: background 0.2s, transform 0.1s; border: none; cursor: pointer; }
+        .field-error { color: var(--danger); font-size: 11px; margin-top: 4px; display: none; }
+        .field-error.show { display: block; }
+        .btn-primary { background: var(--accent); color: white; border-radius: 8px; padding: 8px 16px; font-weight: 600; font-size: 13px; transition: background 0.2s, transform 0.1s; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
         .btn-primary:hover { background: var(--accent-hover); }
         .btn-primary:active { transform: scale(0.98); }
-        .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 8px 16px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 8px 16px; font-weight: 500; font-size: 13px; cursor: pointer; transition: background 0.2s; }
         .btn-secondary:hover { background: var(--bg-primary); }
         .table-header { background: var(--bg-primary); color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
         .table-row { border-bottom: 1px solid var(--border); transition: background 0.15s; }
         .table-row:hover { background: var(--bg-primary); }
-        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
-        .modal-box { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; }
-        .badge-ok { background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
-        .badge-low { background: #fee2e2; color: #b91c1c; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
-        [data-theme="dark"] .badge-ok { background: rgba(34,197,94,0.15); color: #4ade80; }
-        [data-theme="dark"] .badge-low { background: rgba(239,68,68,0.15); color: #f87171; }
-        .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-        .toggle-btn { width: 44px; height: 24px; background: var(--border); border-radius: 999px; position: relative; cursor: pointer; transition: background 0.2s; border: none; }
+        .modal-overlay { background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); }
+        .modal-box { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; max-height: 90vh; overflow-y: auto; }
+        .badge-ok    { background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+        .badge-low   { background: #fee2e2; color: #b91c1c; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+        .badge-admin { background: #ede9fe; color: #6d28d9; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+        .badge-user  { background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+        [data-theme="dark"] .badge-ok    { background: rgba(34,197,94,0.15);  color: #4ade80; }
+        [data-theme="dark"] .badge-low   { background: rgba(239,68,68,0.15);  color: #f87171; }
+        [data-theme="dark"] .badge-admin { background: rgba(139,92,246,0.15); color: #a78bfa; }
+        [data-theme="dark"] .badge-user  { background: rgba(59,130,246,0.15); color: #93c5fd; }
+        .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .toggle-btn { width: 44px; height: 24px; background: var(--border); border-radius: 999px; position: relative; cursor: pointer; transition: background 0.2s; border: none; flex-shrink: 0; }
         .toggle-btn.on { background: var(--accent); }
         .toggle-dot { width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
         .toggle-btn.on .toggle-dot { transform: translateX(20px); }
-
-        /* Login page */
+        .img-upload-area { border: 2px dashed var(--border); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+        .img-upload-area:hover, .img-upload-area.dragover { border-color: var(--accent); background: rgba(59,130,246,0.04); }
+        .img-preview { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; border: 2px solid var(--border); }
+        .product-thumb { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); }
+        .product-thumb-placeholder { width: 36px; height: 36px; border-radius: 8px; background: var(--bg-primary); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+        .filter-bar { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+        .filter-tag { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+        .filter-tag.active { background: var(--accent); border-color: var(--accent); color: white; }
+        /* LOGIN */
         .login-bg { min-height: 100vh; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; }
-        .login-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 20px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); }
-        [data-theme="dark"] .login-card { box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .login-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 20px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.08); }
+        [data-theme="dark"] .login-card { box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
         .login-logo { width: 52px; height: 52px; background: var(--accent); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
         .tab-btn { flex: 1; padding: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: var(--text-secondary); border-bottom: 2px solid transparent; transition: all 0.2s; }
         .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-        /* Animations */
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .strength-bar { height: 4px; border-radius: 2px; transition: background 0.3s; flex: 1; background: var(--border); }
+        .pw-req { font-size: 11px; display: flex; align-items: center; gap: 4px; }
+        .pw-req.met { color: var(--success); }
+        .pw-req.unmet { color: var(--text-secondary); }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         .fade-in { animation: fadeIn 0.3s ease; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .spinner { animation: spin 0.8s linear infinite; }
-
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        .admin-only { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- ===== LOGIN PAGE ===== -->
-    <div id="loginPage" class="login-bg fade-in">
-        <div class="login-card">
-            <div class="login-logo">
-                <i class="fas fa-boxes text-white text-xl"></i>
-            </div>
-            <h1 class="text-center font-bold text-2xl mb-1" style="color: var(--text-primary)">CBA Inventory</h1>
-            <p class="text-center text-sm mb-6" style="color: var(--text-secondary)">SENA · ADSO</p>
+<!-- ===== LOGIN ===== -->
+<div id="loginPage" class="login-bg fade-in">
+    <div class="login-card">
+        <div class="login-logo"><i class="fas fa-boxes text-white text-xl"></i></div>
+        <h1 class="text-center font-bold text-2xl mb-1" style="color:var(--text-primary)">CBA Inventory</h1>
+        <p class="text-center text-sm mb-6" style="color:var(--text-secondary)">SENA · ADSO</p>
 
-            <!-- Tabs -->
-            <div class="flex border-b mb-6" style="border-color: var(--border)">
-                <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Iniciar Sesión</button>
-                <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">Registrarse</button>
-            </div>
+        <div class="flex border-b mb-5" style="border-color:var(--border)">
+            <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Iniciar Sesión</button>
+            <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">Registrarse</button>
+        </div>
 
-            <!-- Login Form -->
-            <div id="formLogin">
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Correo electrónico</label>
-                    <input type="email" id="loginEmail" placeholder="correo@ejemplo.com" class="input-style">
-                </div>
-                <div class="mb-2">
-                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Contraseña</label>
-                    <div class="relative">
-                        <input type="password" id="loginPassword" placeholder="••••••••" class="input-style" style="padding-right: 40px">
-                        <button onclick="togglePassword('loginPassword', this)" class="absolute right-3 top-2.5" style="background:none;border:none;cursor:pointer;color:var(--text-secondary)">
-                            <i class="fas fa-eye text-sm"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="mb-6 text-right">
-                    <button onclick="forgotPassword()" class="text-xs font-semibold" style="color: var(--accent); background: none; border: none; cursor: pointer;">¿Olvidaste tu contraseña?</button>
-                </div>
-                <button onclick="handleLogin()" id="btnLogin" class="btn-primary w-full text-center py-2.5">
-                    <span id="loginBtnText">Ingresar</span>
-                </button>
+        <!-- LOGIN FORM -->
+        <div id="formLogin">
+            <div class="mb-4">
+                <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Correo electrónico</label>
+                <input type="email" id="loginEmail" placeholder="correo@ejemplo.com" class="input-style" oninput="clearFieldError('loginEmail')" onkeydown="if(event.key==='Enter')handleLogin()">
+                <div class="field-error" id="err-loginEmail"></div>
             </div>
+            <div class="mb-5">
+                <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Contraseña</label>
+                <div class="relative">
+                    <input type="password" id="loginPassword" placeholder="••••••••" class="input-style" style="padding-right:40px" oninput="clearFieldError('loginPassword')" onkeydown="if(event.key==='Enter')handleLogin()">
+                    <button type="button" onclick="togglePassword('loginPassword',this)" class="absolute right-3 top-2" style="background:none;border:none;cursor:pointer;color:var(--text-secondary)"><i class="fas fa-eye text-sm"></i></button>
+                </div>
+                <div class="field-error" id="err-loginPassword"></div>
+            </div>
+            <button onclick="handleLogin()" id="btnLogin" class="btn-primary w-full justify-center py-2.5">
+                <span id="loginBtnText">Ingresar</span>
+            </button>
+        </div>
 
-            <!-- Register Form -->
-            <div id="formRegister" class="hidden">
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Correo electrónico</label>
-                    <input type="email" id="registerEmail" placeholder="correo@ejemplo.com" class="input-style">
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Contraseña</label>
-                    <div class="relative">
-                        <input type="password" id="registerPassword" placeholder="Mínimo 6 caracteres" class="input-style" style="padding-right: 40px">
-                        <button onclick="togglePassword('registerPassword', this)" class="absolute right-3 top-2.5" style="background:none;border:none;cursor:pointer;color:var(--text-secondary)">
-                            <i class="fas fa-eye text-sm"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold mb-2" style="color: var(--text-secondary)">Confirmar contraseña</label>
-                    <input type="password" id="registerConfirm" placeholder="Repite tu contraseña" class="input-style">
-                </div>
-                <button onclick="handleRegister()" id="btnRegister" class="btn-primary w-full text-center py-2.5">
-                    <span id="registerBtnText">Crear cuenta</span>
-                </button>
+        <!-- REGISTER FORM -->
+        <div id="formRegister" class="hidden">
+            <div class="mb-3">
+                <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Nombre completo</label>
+                <input type="text" id="registerNombre" placeholder="Tu nombre" class="input-style" oninput="clearFieldError('registerNombre')">
+                <div class="field-error" id="err-registerNombre"></div>
             </div>
+            <div class="mb-3">
+                <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Correo electrónico</label>
+                <input type="email" id="registerEmail" placeholder="correo@ejemplo.com" class="input-style" oninput="clearFieldError('registerEmail')">
+                <div class="field-error" id="err-registerEmail"></div>
+            </div>
+            <div class="mb-3">
+                <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Contraseña</label>
+                <div class="relative">
+                    <input type="password" id="registerPassword" placeholder="Mínimo 8 caracteres" class="input-style" style="padding-right:40px" oninput="checkPasswordStrength();clearFieldError('registerPassword')">
+                    <button type="button" onclick="togglePassword('registerPassword',this)" class="absolute right-3 top-2" style="background:none;border:none;cursor:pointer;color:var(--text-secondary)"><i class="fas fa-eye text-sm"></i></button>
+                </div>
+                <div class="flex gap-1 mt-2">
+                    <div class="strength-bar" id="sb1"></div><div class="strength-bar" id="sb2"></div>
+                    <div class="strength-bar" id="sb3"></div><div class="strength-bar" id="sb4"></div>
+                </div>
+                <div class="mt-2 grid grid-cols-2 gap-1">
+                    <div class="pw-req unmet" id="req-len"><i class="fas fa-circle" style="font-size:6px"></i> 8+ caracteres</div>
+                    <div class="pw-req unmet" id="req-upper"><i class="fas fa-circle" style="font-size:6px"></i> Mayúscula</div>
+                    <div class="pw-req unmet" id="req-num"><i class="fas fa-circle" style="font-size:6px"></i> Número</div>
+                    <div class="pw-req unmet" id="req-special"><i class="fas fa-circle" style="font-size:6px"></i> Carácter especial</div>
+                </div>
+                <div class="field-error" id="err-registerPassword"></div>
+            </div>
+            <div class="mb-3">
+                <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Confirmar contraseña</label>
+                <input type="password" id="registerConfirm" placeholder="Repite tu contraseña" class="input-style" oninput="clearFieldError('registerConfirm')">
+                <div class="field-error" id="err-registerConfirm"></div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Rol</label>
+                <select id="registerRole" class="input-style">
+                    <option value="usuario">Usuario</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+            <button onclick="handleRegister()" id="btnRegister" class="btn-primary w-full justify-center py-2.5">
+                <span id="registerBtnText">Crear cuenta</span>
+            </button>
+        </div>
 
-            <!-- Dark mode toggle in login -->
-            <div class="flex items-center justify-center gap-2 mt-6">
-                <i class="fas fa-sun text-xs" style="color: var(--text-secondary)"></i>
-                <button class="toggle-btn" id="loginThemeToggle" onclick="toggleTheme()">
-                    <div class="toggle-dot"></div>
-                </button>
-                <i class="fas fa-moon text-xs" style="color: var(--text-secondary)"></i>
+        <div class="flex items-center justify-center gap-2 mt-5">
+            <i class="fas fa-sun text-xs" style="color:var(--text-secondary)"></i>
+            <button class="toggle-btn" id="loginThemeToggle" onclick="toggleTheme()"><div class="toggle-dot"></div></button>
+            <i class="fas fa-moon text-xs" style="color:var(--text-secondary)"></i>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="mainApp" class="hidden flex h-screen">
+
+    <!-- Sidebar -->
+    <div class="sidebar w-64 flex flex-col h-full flex-shrink-0">
+        <div class="p-5 border-b" style="border-color:rgba(255,255,255,0.08)">
+            <div class="flex items-center gap-3">
+                <div style="width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <i class="fas fa-boxes text-white text-sm"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-white text-base leading-tight">CBA Inventory</h1>
+                    <p class="text-xs" style="color:var(--text-sidebar)">SENA ADSO</p>
+                </div>
             </div>
+        </div>
+        <nav class="p-4 flex-1">
+            <p class="text-xs font-semibold mb-3 px-2" style="color:rgba(255,255,255,0.3);letter-spacing:0.08em;">MENÚ</p>
+            <ul class="space-y-1">
+                <li><a href="#" class="sidebar-link active" onclick="showSection('dashboard',this);return false;"><i class="fas fa-home w-4 text-center"></i><span>Dashboard</span></a></li>
+                <li><a href="#" class="sidebar-link" onclick="showSection('inventario',this);return false;"><i class="fas fa-boxes w-4 text-center"></i><span>Inventario</span></a></li>
+                <li><a href="#" class="sidebar-link" onclick="showSection('proveedores',this);return false;"><i class="fas fa-truck w-4 text-center"></i><span>Proveedores</span></a></li>
+                <li class="admin-only" id="navUsuarios">
+                    <a href="#" class="sidebar-link" onclick="showSection('usuarios',this);return false;"><i class="fas fa-users w-4 text-center"></i><span>Usuarios</span></a>
+                </li>
+            </ul>
+        </nav>
+        <div class="p-4 border-t" style="border-color:rgba(255,255,255,0.08)">
+            <div class="flex items-center gap-3 mb-3">
+                <div style="width:34px;height:34px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <i class="fas fa-user text-white text-xs"></i>
+                </div>
+                <div class="overflow-hidden flex-1">
+                    <p class="text-xs font-semibold text-white truncate" id="userNameDisplay">—</p>
+                    <span id="userRoleBadge" class="badge-user">Usuario</span>
+                </div>
+            </div>
+            <button onclick="handleLogout()" class="w-full text-left text-xs px-3 py-2 rounded-lg flex items-center gap-2"
+                style="color:var(--text-sidebar);background:rgba(255,255,255,0.05);border:none;cursor:pointer;transition:all 0.2s"
+                onmouseover="this.style.background='rgba(239,68,68,0.2)';this.style.color='#f87171'"
+                onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color=''">
+                <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+            </button>
         </div>
     </div>
 
-    <!-- ===== MAIN APP ===== -->
-    <div id="mainApp" class="hidden flex h-screen">
-
-        <!-- Sidebar -->
-        <div class="sidebar w-64 flex flex-col h-full">
-            <div class="p-5 border-b" style="border-color: rgba(255,255,255,0.08)">
-                <div class="flex items-center gap-3">
-                    <div style="width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <i class="fas fa-boxes text-white text-sm"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-white text-base leading-tight">CBA Inventory</h1>
-                        <p class="text-xs" style="color: var(--text-sidebar)">SENA ADSO</p>
-                    </div>
+    <!-- Main -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="topbar px-6 py-4 flex justify-between items-center">
+            <h2 class="text-lg font-bold" id="sectionTitle" style="color:var(--text-primary)">Panel de Control</h2>
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Buscar productos..." class="input-style pl-9" style="width:210px" oninput="filterProducts()">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-xs" style="color:var(--text-secondary)"></i>
                 </div>
-            </div>
-
-            <nav class="p-4 flex-1">
-                <p class="text-xs font-semibold mb-3 px-2" style="color: rgba(255,255,255,0.3); letter-spacing: 0.08em;">MENÚ</p>
-                <ul class="space-y-1">
-                    <li>
-                        <a href="#" class="sidebar-link active flex items-center gap-3 px-3 py-2.5 text-sm font-medium" onclick="showSection('dashboard', this)">
-                            <i class="fas fa-home w-4 text-center"></i>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium" onclick="showSection('inventario', this)">
-                            <i class="fas fa-boxes w-4 text-center"></i>
-                            <span>Inventario</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium" onclick="showSection('proveedores', this)">
-                            <i class="fas fa-truck w-4 text-center"></i>
-                            <span>Proveedores</span>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-
-            <!-- User info -->
-            <div class="p-4 border-t" style="border-color: rgba(255,255,255,0.08)">
-                <div class="flex items-center gap-3 mb-3">
-                    <div style="width:34px;height:34px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                        <i class="fas fa-user text-white text-xs"></i>
-                    </div>
-                    <div class="overflow-hidden">
-                        <p class="text-xs font-semibold text-white truncate" id="userEmailDisplay">usuario@email.com</p>
-                        <p class="text-xs" style="color: var(--text-sidebar)">Administrador</p>
-                    </div>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-sun text-xs" style="color:var(--text-secondary)"></i>
+                    <button class="toggle-btn" id="appThemeToggle" onclick="toggleTheme()"><div class="toggle-dot"></div></button>
+                    <i class="fas fa-moon text-xs" style="color:var(--text-secondary)"></i>
                 </div>
-                <button onclick="handleLogout()" class="w-full text-left text-xs px-3 py-2 rounded-lg flex items-center gap-2" style="color: var(--text-sidebar); background: rgba(255,255,255,0.05); border: none; cursor: pointer; transition: background 0.2s;"
-                    onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.color='#f87171'"
-                    onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color=''">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar sesión
-                </button>
+                <button id="btnNuevoProducto" onclick="openProductModal()" class="btn-primary"><i class="fas fa-plus"></i> Nuevo Producto</button>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <!-- Topbar -->
-            <div class="topbar px-6 py-4 flex justify-between items-center">
-                <h2 class="text-lg font-bold" id="sectionTitle" style="color: var(--text-primary)">Panel de Control</h2>
-                <div class="flex items-center gap-3">
-                    <!-- Search -->
-                    <div class="relative">
-                        <input type="text" id="searchInput" placeholder="Buscar productos..."
-                            class="input-style text-sm pl-9"
-                            style="width: 220px"
-                            onkeyup="filterProducts()">
-                        <i class="fas fa-search absolute left-3 top-2.5 text-xs" style="color: var(--text-secondary)"></i>
+        <div class="flex-1 overflow-auto p-6">
+
+            <!-- DASHBOARD -->
+            <div id="dashboard" class="fade-in">
+                <div class="grid grid-cols-4 gap-5 mb-6">
+                    <div class="card p-5 flex items-center gap-4"><div class="stat-icon" style="background:rgba(59,130,246,0.12)"><i class="fas fa-dollar-sign" style="color:var(--accent)"></i></div><div><p class="text-xs font-semibold mb-0.5" style="color:var(--text-secondary)">Valor Total</p><p class="text-2xl font-bold" id="totalValor" style="color:var(--text-primary)">$0</p></div></div>
+                    <div class="card p-5 flex items-center gap-4"><div class="stat-icon" style="background:rgba(239,68,68,0.12)"><i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i></div><div><p class="text-xs font-semibold mb-0.5" style="color:var(--text-secondary)">Stock Bajo</p><p class="text-2xl font-bold" id="totalAlertas" style="color:var(--danger)">0</p></div></div>
+                    <div class="card p-5 flex items-center gap-4"><div class="stat-icon" style="background:rgba(34,197,94,0.12)"><i class="fas fa-cube" style="color:var(--success)"></i></div><div><p class="text-xs font-semibold mb-0.5" style="color:var(--text-secondary)">Productos</p><p class="text-2xl font-bold" id="totalProductos" style="color:var(--text-primary)">0</p></div></div>
+                    <div class="card p-5 flex items-center gap-4"><div class="stat-icon" style="background:rgba(245,158,11,0.12)"><i class="fas fa-truck" style="color:var(--warning)"></i></div><div><p class="text-xs font-semibold mb-0.5" style="color:var(--text-secondary)">Proveedores</p><p class="text-2xl font-bold" id="totalProveedores" style="color:var(--text-primary)">0</p></div></div>
+                </div>
+                <div class="card overflow-hidden">
+                    <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color:var(--border)">
+                        <h3 class="font-bold text-sm" style="color:var(--text-primary)">Vista rápida</h3>
+                        <span class="text-xs" style="color:var(--text-secondary)">Últimos 5 productos</span>
                     </div>
-                    <!-- Dark mode toggle -->
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-sun text-xs" style="color: var(--text-secondary)"></i>
-                        <button class="toggle-btn" id="appThemeToggle" onclick="toggleTheme()">
-                            <div class="toggle-dot"></div>
-                        </button>
-                        <i class="fas fa-moon text-xs" style="color: var(--text-secondary)"></i>
-                    </div>
-                    <!-- New Product -->
-                    <button onclick="openProductModal()" class="btn-primary text-sm flex items-center gap-2">
-                        <i class="fas fa-plus"></i> Nuevo Producto
-                    </button>
+                    <table class="w-full">
+                        <thead><tr class="table-header">
+                            <th class="px-4 py-3 text-left w-12">Img</th>
+                            <th class="px-4 py-3 text-left">Producto</th>
+                            <th class="px-4 py-3 text-left">Categoría</th>
+                            <th class="px-4 py-3 text-left">Stock</th>
+                            <th class="px-4 py-3 text-left">Precio</th>
+                            <th class="px-4 py-3 text-left">Estado</th>
+                            <th class="px-4 py-3 text-left">Acciones</th>
+                        </tr></thead>
+                        <tbody id="productosTable"></tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- Sections -->
-            <div class="flex-1 overflow-auto p-6">
-
-                <!-- DASHBOARD -->
-                <div id="dashboard" class="fade-in">
-                    <div class="grid grid-cols-3 gap-5 mb-6">
-                        <div class="card p-5 flex items-center gap-4">
-                            <div class="stat-icon" style="background: rgba(59,130,246,0.12)">
-                                <i class="fas fa-dollar-sign" style="color: var(--accent)"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold mb-0.5" style="color: var(--text-secondary)">Valor Total</p>
-                                <p class="text-2xl font-bold" id="totalValor" style="color: var(--text-primary)">$0</p>
-                            </div>
+            <!-- INVENTARIO -->
+            <div id="inventario" class="hidden fade-in">
+                <div class="filter-bar mb-4">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <div class="relative" style="flex:1;min-width:150px">
+                            <input type="text" id="invSearch" placeholder="Buscar por nombre..." class="input-style pl-8" oninput="applyFilters()">
+                            <i class="fas fa-search absolute left-2.5 top-2.5 text-xs" style="color:var(--text-secondary)"></i>
                         </div>
-                        <div class="card p-5 flex items-center gap-4">
-                            <div class="stat-icon" style="background: rgba(239,68,68,0.12)">
-                                <i class="fas fa-exclamation-triangle" style="color: var(--danger)"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold mb-0.5" style="color: var(--text-secondary)">Stock Bajo</p>
-                                <p class="text-2xl font-bold" id="totalAlertas" style="color: var(--danger)">0</p>
-                            </div>
-                        </div>
-                        <div class="card p-5 flex items-center gap-4">
-                            <div class="stat-icon" style="background: rgba(34,197,94,0.12)">
-                                <i class="fas fa-cube" style="color: var(--success)"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold mb-0.5" style="color: var(--text-secondary)">Total Productos</p>
-                                <p class="text-2xl font-bold" id="totalProductos" style="color: var(--text-primary)">0</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card overflow-hidden">
-                        <div class="px-6 py-4 border-b flex items-center justify-between" style="border-color: var(--border)">
-                            <h3 class="font-bold text-sm" style="color: var(--text-primary)">Vista rápida del inventario</h3>
-                            <span class="text-xs" style="color: var(--text-secondary)">Últimos 5 productos</span>
-                        </div>
-                        <table class="w-full">
-                            <thead>
-                                <tr class="table-header">
-                                    <th class="px-6 py-3 text-left">Producto</th>
-                                    <th class="px-6 py-3 text-left">Categoría</th>
-                                    <th class="px-6 py-3 text-left">Stock</th>
-                                    <th class="px-6 py-3 text-left">Precio</th>
-                                    <th class="px-6 py-3 text-left">Estado</th>
-                                    <th class="px-6 py-3 text-left">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="productosTable"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- INVENTARIO -->
-                <div id="inventario" class="hidden fade-in">
-                    <div class="card overflow-hidden">
-                        <div class="px-6 py-4 border-b" style="border-color: var(--border)">
-                            <h3 class="font-bold text-sm" style="color: var(--text-primary)">Gestión de Inventario</h3>
-                        </div>
-                        <table class="w-full">
-                            <thead>
-                                <tr class="table-header">
-                                    <th class="px-6 py-3 text-left">Producto</th>
-                                    <th class="px-6 py-3 text-left">Categoría</th>
-                                    <th class="px-6 py-3 text-left">Stock</th>
-                                    <th class="px-6 py-3 text-left">Precio</th>
-                                    <th class="px-6 py-3 text-left">Proveedor</th>
-                                    <th class="px-6 py-3 text-left">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="inventarioTable"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- PROVEEDORES -->
-                <div id="proveedores" class="hidden fade-in">
-                    <div class="card overflow-hidden">
-                        <div class="px-6 py-4 border-b flex justify-between items-center" style="border-color: var(--border)">
-                            <h3 class="font-bold text-sm" style="color: var(--text-primary)">Gestión de Proveedores</h3>
-                            <button onclick="openProveedorModal()" class="btn-primary text-sm flex items-center gap-2">
-                                <i class="fas fa-plus"></i> Nuevo Proveedor
-                            </button>
-                        </div>
-                        <table class="w-full">
-                            <thead>
-                                <tr class="table-header">
-                                    <th class="px-6 py-3 text-left">Nombre</th>
-                                    <th class="px-6 py-3 text-left">Contacto</th>
-                                    <th class="px-6 py-3 text-left">Teléfono</th>
-                                    <th class="px-6 py-3 text-left">Email</th>
-                                    <th class="px-6 py-3 text-left">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="proveedoresTable"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== MODAL PRODUCTO ===== -->
-    <div id="productModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
-        <div class="modal-box w-full max-w-md p-6 mx-4">
-            <div class="flex items-center justify-between mb-5">
-                <h3 class="text-lg font-bold" id="modalTitle" style="color: var(--text-primary)">Nuevo Producto</h3>
-                <button onclick="closeProductModal()" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:18px;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="productForm" onsubmit="guardarProducto(event)">
-                <input type="hidden" id="productId">
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div class="col-span-2">
-                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Nombre del Producto</label>
-                        <input type="text" id="productName" class="input-style text-sm" placeholder="Ej: Laptop HP" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Categoría</label>
-                        <select id="productCategory" class="input-style text-sm" required>
-                            <option value="">Seleccionar...</option>
+                        <select id="filterCategoria" class="input-style" style="width:160px" onchange="applyFilters()">
+                            <option value="">Todas las categorías</option>
                             <option value="Electrónica">Electrónica</option>
                             <option value="Computadoras">Computadoras</option>
                             <option value="Accesorios">Accesorios</option>
                             <option value="Monitores">Monitores</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Stock</label>
-                        <input type="number" id="productStock" class="input-style text-sm" placeholder="0" required min="0">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Precio</label>
-                        <input type="number" id="productPrice" class="input-style text-sm" placeholder="0.00" required min="0" step="0.01">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Proveedor</label>
-                        <select id="productSupplier" class="input-style text-sm" required>
-                            <option value="">Seleccionar...</option>
+                        <select id="filterProveedor" class="input-style" style="width:160px" onchange="applyFilters()">
+                            <option value="">Todos los proveedores</option>
                         </select>
+                        <select id="filterStock" class="input-style" style="width:145px" onchange="applyFilters()">
+                            <option value="">Todo el stock</option>
+                            <option value="low">Stock bajo (&lt;5)</option>
+                            <option value="ok">Stock normal (≥5)</option>
+                        </select>
+                        <button onclick="clearFilters()" class="btn-secondary flex items-center gap-1.5" style="padding:7px 12px;white-space:nowrap"><i class="fas fa-times text-xs"></i> Limpiar</button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <button class="filter-tag active" onclick="setCatTag('',this)">Todos</button>
+                        <button class="filter-tag" onclick="setCatTag('Electrónica',this)">Electrónica</button>
+                        <button class="filter-tag" onclick="setCatTag('Computadoras',this)">Computadoras</button>
+                        <button class="filter-tag" onclick="setCatTag('Accesorios',this)">Accesorios</button>
+                        <button class="filter-tag" onclick="setCatTag('Monitores',this)">Monitores</button>
+                        <span class="text-xs ml-2" style="color:var(--text-secondary)" id="filterCount"></span>
                     </div>
                 </div>
-                <div class="flex gap-3 justify-end pt-2">
-                    <button type="button" onclick="closeProductModal()" class="btn-secondary text-sm">Cancelar</button>
-                    <button type="submit" class="btn-primary text-sm">Guardar</button>
+                <div class="card overflow-hidden">
+                    <div class="px-6 py-4 border-b" style="border-color:var(--border)"><h3 class="font-bold text-sm" style="color:var(--text-primary)">Gestión de Inventario</h3></div>
+                    <table class="w-full">
+                        <thead><tr class="table-header">
+                            <th class="px-4 py-3 text-left w-12">Img</th>
+                            <th class="px-4 py-3 text-left">Producto</th>
+                            <th class="px-4 py-3 text-left">Categoría</th>
+                            <th class="px-4 py-3 text-left">Stock</th>
+                            <th class="px-4 py-3 text-left">Precio</th>
+                            <th class="px-4 py-3 text-left">Proveedor</th>
+                            <th class="px-4 py-3 text-left">Acciones</th>
+                        </tr></thead>
+                        <tbody id="inventarioTable"></tbody>
+                    </table>
                 </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ===== MODAL PROVEEDOR ===== -->
-    <div id="proveedorModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
-        <div class="modal-box w-full max-w-md p-6 mx-4">
-            <div class="flex items-center justify-between mb-5">
-                <h3 class="text-lg font-bold" style="color: var(--text-primary)">Nuevo Proveedor</h3>
-                <button onclick="closeProveedorModal()" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:18px;">
-                    <i class="fas fa-times"></i>
-                </button>
             </div>
-            <form id="proveedorForm" onsubmit="guardarProveedor(event)">
-                <div class="space-y-4 mb-4">
-                    <div>
-                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Nombre del Proveedor</label>
-                        <input type="text" id="proveedorName" class="input-style text-sm" placeholder="Ej: TechDistribuidor" required>
+
+            <!-- PROVEEDORES -->
+            <div id="proveedores" class="hidden fade-in">
+                <div class="card overflow-hidden">
+                    <div class="px-6 py-4 border-b flex justify-between items-center" style="border-color:var(--border)">
+                        <h3 class="font-bold text-sm" style="color:var(--text-primary)">Gestión de Proveedores</h3>
+                        <button id="btnNuevoProveedor" onclick="openProveedorModal()" class="btn-primary"><i class="fas fa-plus"></i> Nuevo Proveedor</button>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Persona de Contacto</label>
-                        <input type="text" id="proveedorContacto" class="input-style text-sm" placeholder="Nombre completo" required>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Teléfono</label>
-                            <input type="text" id="proveedorTelefono" class="input-style text-sm" placeholder="3001234567" required>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary)">Email</label>
-                            <input type="email" id="proveedorEmail" class="input-style text-sm" placeholder="email@ejemplo.com" required>
-                        </div>
-                    </div>
+                    <table class="w-full">
+                        <thead><tr class="table-header">
+                            <th class="px-6 py-3 text-left">Nombre</th>
+                            <th class="px-6 py-3 text-left">Contacto</th>
+                            <th class="px-6 py-3 text-left">Teléfono</th>
+                            <th class="px-6 py-3 text-left">Email</th>
+                            <th class="px-6 py-3 text-left">Acciones</th>
+                        </tr></thead>
+                        <tbody id="proveedoresTable"></tbody>
+                    </table>
                 </div>
-                <div class="flex gap-3 justify-end pt-2">
-                    <button type="button" onclick="closeProveedorModal()" class="btn-secondary text-sm">Cancelar</button>
-                    <button type="submit" class="btn-primary text-sm">Guardar</button>
+            </div>
+
+            <!-- USUARIOS (solo admin) -->
+            <div id="usuarios" class="hidden fade-in">
+                <div class="card overflow-hidden">
+                    <div class="px-6 py-4 border-b flex justify-between items-center" style="border-color:var(--border)">
+                        <div>
+                            <h3 class="font-bold text-sm" style="color:var(--text-primary)">Gestión de Usuarios</h3>
+                            <p class="text-xs mt-0.5" style="color:var(--text-secondary)">Solo visible para administradores</p>
+                        </div>
+                    </div>
+                    <table class="w-full">
+                        <thead><tr class="table-header">
+                            <th class="px-6 py-3 text-left">Nombre</th>
+                            <th class="px-6 py-3 text-left">Email</th>
+                            <th class="px-6 py-3 text-left">Rol</th>
+                            <th class="px-6 py-3 text-left">Estado</th>
+                            <th class="px-6 py-3 text-left">Registrado</th>
+                        </tr></thead>
+                        <tbody id="usuariosTable"></tbody>
+                    </table>
                 </div>
-            </form>
+            </div>
+
         </div>
     </div>
+</div>
 
-    <script src="app.js"></script>
+<!-- ===== MODAL PRODUCTO ===== -->
+<div id="productModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
+    <div class="modal-box w-full max-w-lg p-6 mx-4">
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-bold" id="modalTitle" style="color:var(--text-primary)">Nuevo Producto</h3>
+            <button onclick="closeProductModal()" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:18px;"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="productForm" onsubmit="guardarProducto(event)" novalidate>
+            <input type="hidden" id="productId">
+            <input type="hidden" id="productImageUrl">
+            <div class="mb-4">
+                <label class="block text-xs font-semibold mb-2" style="color:var(--text-secondary)">Imagen del Producto</label>
+                <div class="flex items-center gap-4">
+                    <div id="imgPreviewWrap" class="hidden flex-shrink-0">
+                        <img id="imgPreview" class="img-preview" src="" alt="preview">
+                        <button type="button" onclick="clearImage()" class="block text-xs mt-1 text-center w-full" style="color:var(--danger);background:none;border:none;cursor:pointer;">Quitar</button>
+                    </div>
+                    <div class="img-upload-area flex-1" id="uploadArea"
+                        onclick="document.getElementById('imageFile').click()"
+                        ondragover="event.preventDefault();this.classList.add('dragover')"
+                        ondragleave="this.classList.remove('dragover')"
+                        ondrop="handleDrop(event)">
+                        <i class="fas fa-cloud-upload-alt mb-1 text-lg" style="color:var(--text-secondary)"></i>
+                        <p class="text-xs" style="color:var(--text-secondary)">Haz clic o arrastra una imagen</p>
+                        <p class="text-xs mt-0.5" style="color:var(--border)">PNG, JPG · máx. 2MB</p>
+                    </div>
+                    <input type="file" id="imageFile" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleImageSelect(this)">
+                </div>
+                <div class="field-error" id="err-imageFile"></div>
+                <div id="uploadProgress" class="hidden mt-2 text-xs flex items-center gap-2" style="color:var(--accent)">
+                    <i class="fas fa-circle-notch spinner"></i> Subiendo imagen...
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Nombre <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="productName" class="input-style" placeholder="Ej: Laptop HP 15" oninput="clearFieldError('productName')">
+                    <div class="field-error" id="err-productName"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Categoría <span style="color:var(--danger)">*</span></label>
+                    <select id="productCategory" class="input-style" onchange="clearFieldError('productCategory')">
+                        <option value="">Seleccionar...</option>
+                        <option value="Electrónica">Electrónica</option>
+                        <option value="Computadoras">Computadoras</option>
+                        <option value="Accesorios">Accesorios</option>
+                        <option value="Monitores">Monitores</option>
+                    </select>
+                    <div class="field-error" id="err-productCategory"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Proveedor <span style="color:var(--danger)">*</span></label>
+                    <select id="productSupplier" class="input-style" onchange="clearFieldError('productSupplier')">
+                        <option value="">Seleccionar...</option>
+                    </select>
+                    <div class="field-error" id="err-productSupplier"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Stock <span style="color:var(--danger)">*</span></label>
+                    <input type="number" id="productStock" class="input-style" placeholder="0" min="0" oninput="clearFieldError('productStock')">
+                    <div class="field-error" id="err-productStock"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Precio (USD) <span style="color:var(--danger)">*</span></label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2" style="color:var(--text-secondary);font-size:13px">$</span>
+                        <input type="number" id="productPrice" class="input-style" style="padding-left:22px" placeholder="0.00" min="0" step="0.01" oninput="clearFieldError('productPrice')">
+                    </div>
+                    <div class="field-error" id="err-productPrice"></div>
+                </div>
+            </div>
+            <div class="flex gap-3 justify-end pt-3 border-t" style="border-color:var(--border)">
+                <button type="button" onclick="closeProductModal()" class="btn-secondary">Cancelar</button>
+                <button type="submit" class="btn-primary">Guardar Producto</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===== MODAL PROVEEDOR ===== -->
+<div id="proveedorModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50">
+    <div class="modal-box w-full max-w-md p-6 mx-4">
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-bold" style="color:var(--text-primary)">Nuevo Proveedor</h3>
+            <button onclick="closeProveedorModal()" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:18px;"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="proveedorForm" onsubmit="guardarProveedor(event)" novalidate>
+            <div class="space-y-4 mb-5">
+                <div>
+                    <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Nombre <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="proveedorName" class="input-style" placeholder="Ej: TechDistribuidor S.A." oninput="clearFieldError('proveedorName')">
+                    <div class="field-error" id="err-proveedorName"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Persona de Contacto <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="proveedorContacto" class="input-style" placeholder="Nombre completo" oninput="clearFieldError('proveedorContacto')">
+                    <div class="field-error" id="err-proveedorContacto"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Teléfono <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="proveedorTelefono" class="input-style" placeholder="3001234567" oninput="clearFieldError('proveedorTelefono')">
+                        <div class="field-error" id="err-proveedorTelefono"></div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Email <span style="color:var(--danger)">*</span></label>
+                        <input type="email" id="proveedorEmail" class="input-style" placeholder="email@ejemplo.com" oninput="clearFieldError('proveedorEmail')">
+                        <div class="field-error" id="err-proveedorEmail"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 justify-end pt-3 border-t" style="border-color:var(--border)">
+                <button type="button" onclick="closeProveedorModal()" class="btn-secondary">Cancelar</button>
+                <button type="submit" class="btn-primary">Guardar Proveedor</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
